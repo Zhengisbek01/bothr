@@ -432,6 +432,14 @@ function MediaUploadField({ media, onChange }) {
         <input ref={fileRef} type="file" accept={media.mediaType === 'video' ? 'video/*' : 'image/*'} style={{ display: 'none' }} onChange={handleFile} />
       </div>
       {preview && <button className="btn btn-ghost btn-sm" style={{ width: '100%', marginTop: 6, color: 'var(--danger)' }} onClick={() => { setPreview(''); onChange({ ...media, url: '', fileName: '' }) }}>🗑 Удалить</button>}
+
+      <div style={{ marginTop: 10 }}>
+        <label>Текст под фото/видео</label>
+        <textarea rows={3} value={media.caption || ''}
+          onChange={e => onChange({ ...media, caption: e.target.value })}
+          placeholder="Введите подпись под медиафайлом..."
+          style={{ resize: 'vertical', marginTop: 4 }} />
+      </div>
     </div>
   )
 }
@@ -460,7 +468,15 @@ function NodeBlock({ node, selected, onClick, onDrag }) {
       </div>
       <div style={{ padding: '8px 12px' }}>
         <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>{node.label}</p>
-        {node.type === 'media' && node.media?.url && <img src={node.media.url} alt="" style={{ width: '100%', height: 50, objectFit: 'cover', borderRadius: 6, marginBottom: 4 }} />}
+        {node.type === 'media' && node.media?.url && (
+          <div>
+            {node.media.mediaType === 'video'
+              ? <div style={{ background: '#ec489922', borderRadius: 6, padding: '4px 8px', fontSize: 10, color: '#ec4899', marginBottom: 4 }}>🎥 {node.media.fileName || 'Видео'}</div>
+              : <img src={node.media.url} alt="" style={{ width: '100%', height: 50, objectFit: 'cover', borderRadius: 6, marginBottom: 4 }} />
+            }
+            {node.media.caption && <p style={{ fontSize: 10, color: 'var(--text2)', lineHeight: 1.4, marginTop: 2 }}>{node.media.caption.slice(0, 60)}{node.media.caption.length > 60 ? '...' : ''}</p>}
+          </div>
+        )}
         {node.message && node.type !== 'media' && <p style={{ fontSize: 10, color: 'var(--text2)', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{node.message}</p>}
         {node.type === 'question' && node.options && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 4 }}>
