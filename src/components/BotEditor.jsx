@@ -134,7 +134,44 @@ export default function BotEditor({ bot, onBack }) {
           {/* CANVAS VIEW */}
           {viewMode === 'canvas' && (
             <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, position: 'relative', overflow: 'auto' }}>
-              <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1 }}>
+              {/* Grid background */}
+              <div style={{
+                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0,
+                backgroundImage: 'radial-gradient(circle, #1e2d45 1px, transparent 1px)',
+                backgroundSize: '20px 20px',
+                pointerEvents: 'none',
+              }} />
+
+              {/* Auto-align button */}
+              <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 10, display: 'flex', gap: 6 }}>
+                <button className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    // Auto arrange nodes in a vertical flow
+                    const startNode = nodes.find(n => n.type === 'start')
+                    if (!startNode) return
+                    const COL_W = 260
+                    const ROW_H = 140
+                    const arranged = new Map()
+                    const visited = new Set()
+
+                    const arrange = (nodeId, col, row) => {
+                      if (visited.has(nodeId)) return row
+                      visited.add(nodeId)
+                      arranged.set(nodeId, { x: 40 + col * COL_W, y: 40 + row * ROW_H })
+                      const outEdges = edges.filter(e => e.from === nodeId)
+                      let nextRow = row + 1
+                      outEdges.forEach((e, i) => {
+                        nextRow = Math.max(nextRow, arrange(e.to, col + (i > 0 ? i : 0), row + 1))
+                      })
+                      return nextRow
+                    }
+                    arrange(startNode.id, 0, 0)
+                    setNodes(prev => prev.map(n => arranged.has(n.id) ? { ...n, ...arranged.get(n.id) } : n))
+                  }}>
+                  ⚡ Выровнять
+                </button>
+              </div>
+              <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 2 }}>
                 <defs>
                   <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
                     <path d="M0,0 L0,6 L8,3 z" fill="var(--accent)" />
@@ -157,7 +194,7 @@ export default function BotEditor({ bot, onBack }) {
                   )
                 })}
               </svg>
-              <div style={{ position: 'relative', zIndex: 2, minWidth: 700, minHeight: 600, padding: 20 }}>
+              <div style={{ position: 'relative', zIndex: 3, minWidth: 700, minHeight: 600, padding: 20 }}>
                 {nodes.length === 0 && <div className="empty-state" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }}><p>Добавьте блоки из панели слева</p></div>}
                 {nodes.map(node => (
                   <NodeBlock key={node.id} node={node} selected={selected === node.id}
@@ -513,12 +550,26 @@ function MediaUploadField({ media, onChange }) {
 
 function NodeBlock({ node, selected, onClick, onDrag }) {
   const color = TYPE_COLOR[node.type] || '#8899aa'
+  const GRID = 20 // snap to 20px grid
+
   const handleMouseDown = (e) => {
     e.stopPropagation()
     onClick()
-    const origin = { x: e.clientX, y: e.clientY }
-    const move = (ev) => { onDrag(ev.clientX - origin.x, ev.clientY - origin.y); origin.x = ev.clientX; origin.y = ev.clientY }
-    const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up) }
+    const startX = e.clientX - node.x
+    const startY = e.clientY - node.y
+
+    const move = (ev) => {
+      const rawX = ev.clientX - startX
+      const rawY = ev.clientY - startY
+      // Snap to grid
+      const snappedX = Math.round(rawX / GRID) * GRID
+      const snappedY = Math.round(rawY / GRID) * GRID
+      onDrag(snappedX - node.x, snappedY - node.y)
+    }
+    const up = () => {
+      document.removeEventListener('mousemove', move)
+      document.removeEventListener('mouseup', up)
+    }
     document.addEventListener('mousemove', move)
     document.addEventListener('mouseup', up)
   }
