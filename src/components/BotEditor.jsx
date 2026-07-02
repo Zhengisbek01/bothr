@@ -399,6 +399,7 @@ function PropsPanel({ node, nodes, edges, onUpdate, onDelete, onConnect, onConne
 
 function MediaUploadField({ media, onChange }) {
   const fileRef = useRef()
+  const docRef = useRef()
   const [preview, setPreview] = useState(media.url || '')
 
   const handleFile = (e) => {
@@ -414,30 +415,96 @@ function MediaUploadField({ media, onChange }) {
     reader.readAsDataURL(file)
   }
 
+  const handleDoc = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      onChange({ ...media, url: ev.target.result, mediaType: 'document', fileName: file.name, fileSize: (file.size / 1024).toFixed(1) + ' KB' })
+      setPreview('')
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const isDoc = media.mediaType === 'document'
+
   return (
     <div className="form-group">
-      <label>Фото или видео</label>
+      <label>Фото, видео или файл</label>
+
+      {/* Type selector */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-        {['image', 'video'].map(t => (
-          <button key={t} onClick={() => onChange({ ...media, mediaType: t })}
-            style={{ flex: 1, padding: '6px', borderRadius: 6, border: `1px solid ${media.mediaType === t ? 'var(--accent)' : 'var(--border)'}`, background: media.mediaType === t ? 'rgba(37,211,102,0.12)' : 'var(--surface2)', color: media.mediaType === t ? 'var(--accent)' : 'var(--text2)', cursor: 'pointer', fontSize: 12 }}>
-            {t === 'image' ? '🖼️ Фото' : '🎥 Видео'}
+        {[['image','🖼️ Фото'],['video','🎥 Видео'],['document','📎 Файл']].map(([t, l]) => (
+          <button key={t} onClick={() => { onChange({ ...media, mediaType: t, url: '', fileName: '' }); setPreview('') }}
+            style={{
+              flex: 1, padding: '6px', borderRadius: 6,
+              border: `1px solid ${media.mediaType === t ? 'var(--accent)' : 'var(--border)'}`,
+              background: media.mediaType === t ? 'rgba(37,211,102,0.12)' : 'var(--surface2)',
+              color: media.mediaType === t ? 'var(--accent)' : 'var(--text2)',
+              cursor: 'pointer', fontSize: 11, fontWeight: media.mediaType === t ? 600 : 400,
+            }}>
+            {l}
           </button>
         ))}
       </div>
-      <div onClick={() => fileRef.current.click()} style={{ border: '2px dashed var(--border)', borderRadius: 10, padding: preview ? '8px' : '20px 12px', textAlign: 'center', cursor: 'pointer', background: 'var(--surface2)' }}>
-        {preview && media.mediaType === 'image' && <img src={preview} alt="" style={{ maxWidth: '100%', maxHeight: 100, borderRadius: 6, objectFit: 'cover' }} />}
-        {preview && media.mediaType === 'video' && <video src={preview} controls style={{ maxWidth: '100%', maxHeight: 80, borderRadius: 6 }} />}
-        {!preview && <p style={{ fontSize: 12, color: 'var(--text2)' }}>📁 Нажмите для загрузки</p>}
-        <input ref={fileRef} type="file" accept={media.mediaType === 'video' ? 'video/*' : 'image/*'} style={{ display: 'none' }} onChange={handleFile} />
-      </div>
-      {preview && <button className="btn btn-ghost btn-sm" style={{ width: '100%', marginTop: 6, color: 'var(--danger)' }} onClick={() => { setPreview(''); onChange({ ...media, url: '', fileName: '' }) }}>🗑 Удалить</button>}
 
+      {/* Document upload */}
+      {isDoc ? (
+        <div>
+          <div onClick={() => docRef.current.click()}
+            style={{ border: '2px dashed var(--border)', borderRadius: 10, padding: '20px 12px', textAlign: 'center', cursor: 'pointer', background: 'var(--surface2)', transition: 'border-color 0.2s' }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}>
+            {media.fileName && isDoc ? (
+              <div>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>📄</div>
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>{media.fileName}</p>
+                <p style={{ fontSize: 11, color: 'var(--text2)' }}>{media.fileSize}</p>
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>📎</div>
+                <p style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 4 }}>Нажмите для загрузки файла</p>
+                <p style={{ fontSize: 11, color: 'var(--text2)' }}>PDF, DOCX, XLSX, PPT до 20MB</p>
+              </div>
+            )}
+            <input ref={docRef} type="file"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
+              style={{ display: 'none' }} onChange={handleDoc} />
+          </div>
+          {media.fileName && isDoc && (
+            <button className="btn btn-ghost btn-sm" style={{ width: '100%', marginTop: 6, color: 'var(--danger)' }}
+              onClick={() => onChange({ ...media, url: '', fileName: '', fileSize: '' })}>
+              🗑 Удалить файл
+            </button>
+          )}
+        </div>
+      ) : (
+        <div>
+          <div onClick={() => fileRef.current.click()}
+            style={{ border: '2px dashed var(--border)', borderRadius: 10, padding: preview ? '8px' : '20px 12px', textAlign: 'center', cursor: 'pointer', background: 'var(--surface2)', transition: 'border-color 0.2s' }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}>
+            {preview && media.mediaType === 'image' && <img src={preview} alt="" style={{ maxWidth: '100%', maxHeight: 120, borderRadius: 6, objectFit: 'cover' }} />}
+            {preview && media.mediaType === 'video' && <video src={preview} controls style={{ maxWidth: '100%', maxHeight: 100, borderRadius: 6 }} />}
+            {!preview && <p style={{ fontSize: 12, color: 'var(--text2)' }}>📁 Нажмите для загрузки</p>}
+            <input ref={fileRef} type="file" accept={media.mediaType === 'video' ? 'video/*' : 'image/*'} style={{ display: 'none' }} onChange={handleFile} />
+          </div>
+          {preview && (
+            <button className="btn btn-ghost btn-sm" style={{ width: '100%', marginTop: 6, color: 'var(--danger)' }}
+              onClick={() => { setPreview(''); onChange({ ...media, url: '', fileName: '' }) }}>
+              🗑 Удалить
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Caption */}
       <div style={{ marginTop: 10 }}>
-        <label>Текст под фото/видео</label>
+        <label>Текст под медиафайлом</label>
         <textarea rows={3} value={media.caption || ''}
           onChange={e => onChange({ ...media, caption: e.target.value })}
-          placeholder="Введите подпись под медиафайлом..."
+          placeholder="Подпись под фото/видео/файлом..."
           style={{ resize: 'vertical', marginTop: 4 }} />
       </div>
     </div>
@@ -472,6 +539,10 @@ function NodeBlock({ node, selected, onClick, onDrag }) {
           <div>
             {node.media.mediaType === 'video'
               ? <div style={{ background: '#ec489922', borderRadius: 6, padding: '4px 8px', fontSize: 10, color: '#ec4899', marginBottom: 4 }}>🎥 {node.media.fileName || 'Видео'}</div>
+              : node.media.mediaType === 'document'
+              ? <div style={{ background: 'rgba(59,130,246,0.15)', borderRadius: 6, padding: '6px 8px', fontSize: 10, color: 'var(--blue)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>📄</span> <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.media.fileName || 'Файл'}</span>
+                </div>
               : <img src={node.media.url} alt="" style={{ width: '100%', height: 50, objectFit: 'cover', borderRadius: 6, marginBottom: 4 }} />
             }
             {node.media.caption && <p style={{ fontSize: 10, color: 'var(--text2)', lineHeight: 1.4, marginTop: 2 }}>{node.media.caption.slice(0, 60)}{node.media.caption.length > 60 ? '...' : ''}</p>}
